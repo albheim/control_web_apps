@@ -20,6 +20,9 @@ trait CentralApp {
 
 impl eframe::App for ControlApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Set light theme so we don't have to mess with colors for plots
+        ctx.set_visuals(egui::Visuals::light());
+
         egui::TopBottomPanel::top("app_selection_panel").show(ctx, |ui| {
             if self.top_bar(ui) {
                 #[cfg(not(target_arch = "wasm32"))] // no quit on web pages!
