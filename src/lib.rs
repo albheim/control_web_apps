@@ -148,8 +148,17 @@ mod pole_position_app {
                 label,
                 order: Order::First,
                 display: Display::StepResponse,
-                fo: FirstOrderSystem { T: 1.0, T_lower: 0.1, T_upper: 500.0},
-                so: SecondOrderSystem { d: 0.5, w: 0.75, d_lower: 0.01, d_upper: 5.0, w_lower: 0.01, w_upper: 5.0},
+                fo: FirstOrderSystem { 
+                    T: 1.0, T_lower: 0.1, T_upper: 500.0,
+                    K: 1.0, K_lower: -2.0, K_upper: 2.0,
+                    L: 0.0, L_lower: 0.0, L_upper: 5.0,
+                },
+                so: SecondOrderSystem {
+                    d: 0.5, d_lower: 0.01, d_upper: 5.0,
+                    w: 0.75, w_lower: 0.01, w_upper: 5.0,
+                    K: 1.0, K_lower: -2.0, K_upper: 2.0,
+                    L: 0.0, L_lower: 0.0, L_upper: 5.0,
+                },
                 pole_drag_offset: None,
             }
         }
@@ -210,17 +219,17 @@ mod pole_position_app {
         fn parameter_sliders(&mut self, ui: &mut Ui) {
             match self.order {
                 Order::First => {
-                    ui.heading("G(s) = 1/(sT + 1)");
-                    ui.add(
-                        egui::Slider::new(&mut self.fo.T, self.fo.T_lower..=self.fo.T_upper)
-                            .text("T")
-                            .logarithmic(true),
-                    );
+                    ui.heading("G(s) = K * exp(-Ls) / (sT + 1)");
+                    ui.add(egui::Slider::new(&mut self.fo.T, self.fo.T_lower..=self.fo.T_upper).text("T").logarithmic(true));
+                    ui.add(egui::Slider::new(&mut self.fo.K, self.fo.K_lower..=self.fo.K_upper).text("K"));
+                    ui.add(egui::Slider::new(&mut self.fo.L, self.fo.L_lower..=self.fo.L_upper).text("L"));
                 }
                 Order::Second => {
-                    ui.heading("G(s) = ω^2/(s^2 + 2δωs + ω^2)");
+                    ui.heading("G(s) = K * exp(-Ls) * ω^2 / (s^2 + 2δωs + ω^2)");
                     ui.add(egui::Slider::new(&mut self.so.d, self.so.d_lower..=self.so.d_upper).text("δ"));
                     ui.add(egui::Slider::new(&mut self.so.w, self.so.w_lower..=self.so.w_upper).text("ω"));
+                    ui.add(egui::Slider::new(&mut self.so.K, self.so.K_lower..=self.so.K_upper).text("K"));
+                    ui.add(egui::Slider::new(&mut self.so.L, self.so.L_lower..=self.so.L_upper).text("L"));
                 }
             };
         }

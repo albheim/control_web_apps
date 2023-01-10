@@ -14,8 +14,14 @@ pub struct FirstOrderSystem {
     // pole = -1/T
     // https://www.tutorialspoint.com/control_systems/control_systems_response_first_order.htm
     pub T: f64,
+    pub K: f64,
+    pub L: f64,
     pub T_lower: f64,
     pub T_upper: f64,
+    pub K_lower: f64,
+    pub K_upper: f64,
+    pub L_lower: f64,
+    pub L_upper: f64,
 }
 
 impl TransferFunction for FirstOrderSystem {
@@ -24,7 +30,8 @@ impl TransferFunction for FirstOrderSystem {
     }
 
     fn step_response(&self, t: f64) -> f64 {
-        if t >= 0.0 {
+        let t = t - self.L;
+        self.K * if t >= 0.0 {
             1.0 - (-t / self.T).exp()
         } else {
             0.0
@@ -32,11 +39,11 @@ impl TransferFunction for FirstOrderSystem {
     }
 
     fn bode_amplitude(&self, w: f64) -> f64 {
-        1.0 / (((w * self.T).powi(2) + 1.0).sqrt())
+        self.K.abs() / (((w * self.T).powi(2) + 1.0).sqrt())
     }
 
     fn bode_phase(&self, w: f64) -> f64 {
-        -(w * self.T).atan()
+        -self.L * w - (w * self.T).atan()
     }
 
     fn adjust_poles_to(&mut self, re: f64, _im: f64) {
@@ -59,10 +66,16 @@ pub struct SecondOrderSystem {
     // https://www.tutorialspoint.com/control_systems/control_systems_response_second_order.htm
     pub d: f64,
     pub w: f64,
+    pub K: f64,
+    pub L: f64,
     pub d_lower: f64,
     pub d_upper: f64,
     pub w_lower: f64,
     pub w_upper: f64,
+    pub K_lower: f64,
+    pub K_upper: f64,
+    pub L_lower: f64,
+    pub L_upper: f64,
 }
 
 impl TransferFunction for SecondOrderSystem {
@@ -88,12 +101,13 @@ impl TransferFunction for SecondOrderSystem {
 
     fn step_response(&self, t: f64) -> f64 {
         let (d, w) = (self.d, self.w);
+        let t = t - self.L;
 
         if t < 0.0 {
             return 0.0;
         }
 
-        if d == 0.0 {
+        self.K * if d == 0.0 {
             1.0 - (w * t).cos()
         } else if (0.0 < d) && (d < 1.0) {
             let d_1_sqrt = (1.0 - d.powi(2)).sqrt();
@@ -111,7 +125,7 @@ impl TransferFunction for SecondOrderSystem {
     fn bode_amplitude(&self, w: f64) -> f64 {
         let (d, wp) = (self.d, self.w);
 
-        wp.powi(2) / ( ( (wp.powi(2) - w.powi(2)).powi(2) + (2f64*d*wp*w).powi(2) ).sqrt() )
+        self.K.abs() * wp.powi(2) / (((wp.powi(2) - w.powi(2)).powi(2) + (2f64*d*wp*w).powi(2)).sqrt())
     }
 
     fn bode_phase(&self, w: f64) -> f64 {
@@ -119,7 +133,7 @@ impl TransferFunction for SecondOrderSystem {
 
         let (d, wp) = (self.d, self.w);
 
-        let ph = -( (2f64*d*wp*w)/(wp.powi(2) - w.powi(2))  ).atan();
+        let ph = -self.L * w - (2.0*d*wp*w / (wp.powi(2) - w.powi(2))).atan();
         if ph > 0.0 {
             ph - PI
         } else {
