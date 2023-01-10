@@ -207,7 +207,7 @@ mod pole_position_app {
         fn parameter_sliders(&mut self, ui: &mut Ui) {
             match self.order {
                 Order::First => {
-                    ui.heading("G(s) = 1/(sT - 1)");
+                    ui.heading("G(s) = 1/(sT + 1)");
                     ui.add(
                         egui::Slider::new(&mut self.fo.T, self.fo.T_lower..=self.fo.T_upper)
                             .text("T")
@@ -215,7 +215,7 @@ mod pole_position_app {
                     );
                 }
                 Order::Second => {
-                    ui.heading("G(s) = ω^2/(s^2 + 2δωs+ ω^2)");
+                    ui.heading("G(s) = ω^2/(s^2 + 2δωs + ω^2)");
                     ui.add(egui::Slider::new(&mut self.so.d, self.so.d_lower..=self.so.d_upper).text("δ"));
                     ui.add(egui::Slider::new(&mut self.so.w, self.so.w_lower..=self.so.w_upper).text("ω"));
                 }
