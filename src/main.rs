@@ -13,7 +13,7 @@ fn main() {
 
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
-        "eframe template",
+        "Control Applications",
         native_options,
         // Box::new(|cc| Box::new(control_web_apps::TemplateApp::new(cc))),
         Box::new(|cc| Box::new(control_web_apps::ControlApp::new(cc))),
