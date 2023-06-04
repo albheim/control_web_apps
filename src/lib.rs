@@ -433,7 +433,7 @@ mod tf_plots {
         let zero_data = Points::new(tf.zeros());
         let unit_circle = Line::new(PlotPoints::from_parametric_callback(
             |t| (t.sin(), t.cos()),
-            0.0..(2.0 * PI),
+            0.0..(2.1 * PI),
             100,
         ));
 
