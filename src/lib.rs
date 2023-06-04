@@ -388,7 +388,7 @@ mod tf_plots {
 
                 let mut plot = Plot::new(title)
                     .allow_scroll(false)
-                    .allow_zoom(false)
+                    .allow_zoom(true)
                     .allow_boxed_zoom(false)
                     .allow_drag(false)
                     .show_x(false)
