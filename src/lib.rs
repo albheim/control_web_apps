@@ -169,8 +169,8 @@ mod pole_position_app {
                     L: 0.0, L_lower: 0.0, L_upper: 5.0,
                 },
                 complex: ComplexSecondOrderSystem {
-                    d: 0.7, d_lower: 0.01, d_upper: 5.0,
-                    w: 1.0, w_lower: 0.01, w_upper: 5.0,
+                    d: 0.7, d_lower: 0.01, d_upper: 1.0,
+                    w: 1.0, w_lower: 0.01, w_upper: 10.0,
                     K: 1.0, K_lower: -2.0, K_upper: 2.0,
                     L: 0.0, L_lower: 0.0, L_upper: 5.0,
                 },
