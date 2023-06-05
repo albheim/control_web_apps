@@ -479,7 +479,7 @@ mod tf_plots {
 
         // Calculate plot bounds
         let t_bounds = (0.0 - t_end * pad_ratio)..(t_end + t_end * pad_ratio);
-        let y_bounds = (0.0 - pad_ratio)..(1.5 + pad_ratio);
+        let y_bounds = (-0.5 - pad_ratio)..(1.5 + pad_ratio);
 
         // Calc plot data
         let step = (t_bounds.end - t_bounds.start) / ((n_samples - 1) as f64);
