@@ -253,16 +253,20 @@ impl TransferFunction for ComplexSecondOrderSystem {
     }
 
     fn bode_phase(&self, w: f64) -> f64 {
-        use std::f64::consts::PI;
+        //use std::f64::consts::PI;
 
-        let (d, wp) = (self.d, self.w);
+        //let (d, wp) = (self.d, self.w);
 
+        /*
         let ph = -self.L * w - (2.0*d*wp*w / (wp.powi(2) - w.powi(2))).atan();
         if ph > 0.0 {
             ph - PI
         } else {
             ph
         }
+        */
+
+        -self.L * w + (-2.0*self.d*self.w*w).atan2(self.w.powi(2) - w.powi(2))
     }
 
     fn adjust_pole_zero(&mut self, re: f64, im: f64) {
