@@ -433,11 +433,6 @@ mod tf_plots {
         // Plot points
         let pole_data = Points::new(tf.poles());
         let zero_data = Points::new(tf.zeros());
-        let unit_circle = Line::new(PlotPoints::from_parametric_callback(
-            |t| (t.sin(), t.cos()),
-            0.0..(2.1 * PI),
-            100,
-        ));
 
         // Plot
         plot_show(
@@ -449,7 +444,6 @@ mod tf_plots {
             im_bounds,
             |plot| plot.data_aspect(1.0),
             |plot_ui| {
-                plot_ui.line(unit_circle.color(Color32::GRAY));
                 plot_ui.points(
                     pole_data.shape(MarkerShape::Cross)
                         .color(Color32::BLACK)
