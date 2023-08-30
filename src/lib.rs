@@ -5,12 +5,10 @@ mod transfer_functions;
 #[allow(unused_imports)]
 use basic_print::basic_print; // basic print for print-debugging
 
-use frequency_response_app::FreqResp;
 use pole_position_app::PolePos;
 
 pub struct ControlApp {
-    cur_app_idx: Option<usize>,
-    apps: Vec<Box<dyn CentralApp>>,
+    app: Box<dyn CentralApp>,
 }
 
 trait CentralApp {
@@ -23,25 +21,9 @@ impl eframe::App for ControlApp {
         // Set light theme so we don't have to mess with colors for plots
         ctx.set_visuals(egui::Visuals::light());
 
-        /* Skip draw top panel
-        egui::TopBottomPanel::top("app_selection_panel").show(ctx, |ui| {
-            if self.top_bar(ui) {
-                #[cfg(not(target_arch = "wasm32"))] // no quit on web pages!
-                _frame.close();
-            }
-        });
-        */
-
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.centered_and_justified(|ui| {
-                match self.cur_app_idx {
-                    None => {
-                        ui.label("Select an application in the bar above.");
-                    }
-                    Some(idx) => {
-                        self.apps[idx].draw_app(ui);
-                    }
-                };
+                self.app.draw_app(ui);
             });
         });
     }
@@ -49,62 +31,11 @@ impl eframe::App for ControlApp {
 
 impl ControlApp {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
-        // This is also where you can customized the look at feel of egui using
-        // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
+        let app = Box::new(PolePos::new("Pole Positioning".to_string()));
 
-        let apps: Vec<Box<dyn CentralApp>> = vec![
-            Box::new(PolePos::new("Pole Positioning".to_string())),
-            Box::new(FreqResp::new("Frequency Response".to_string())),
-        ];
-
-        if cfg!(debug_assertions) {
-            ControlApp {
-                cur_app_idx: Some(0),
-                apps,
-            }
-        } else {
-            ControlApp {
-                cur_app_idx: None,
-                apps,
-            }
+        ControlApp {
+            app,
         }
-    }
-
-    fn top_bar(&mut self, ui: &mut egui::Ui) -> bool {
-        #[allow(unused_mut)]
-        let mut quit = false;
-
-        ui.horizontal_wrapped(|ui| {
-            ui.heading("Control Apps");
-            ui.separator();
-
-            for (idx, app) in self.apps.iter().enumerate() {
-                let checked = match self.cur_app_idx {
-                    Some(cur) => cur == idx,
-                    None => false,
-                };
-                if ui.selectable_label(checked, app.get_label()).clicked() {
-                    if checked {
-                        self.cur_app_idx = None;
-                    } else {
-                        self.cur_app_idx = Some(idx);
-                    }
-                }
-            }
-
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                #[cfg(not(target_arch = "wasm32"))] // no quit on web pages!
-                {
-                    if ui.button("Quit").clicked() {
-                        quit = true;
-                    }
-                    ui.separator();
-                }
-                egui::warn_if_debug_build(ui);
-            });
-        });
-
-        return quit;
     }
 }
 
@@ -354,7 +285,7 @@ mod pole_position_app {
 
 
 mod tf_plots {
-    use egui::plot::{ Line, LineStyle, MarkerShape, Plot, PlotPoints, PlotUi, Points, };
+    use egui::plot::{ Line, LineStyle, MarkerShape, Plot, PlotUi, Points, };
     use egui::{ Align, Color32, InnerResponse, Layout, Ui, Vec2, };
 
     use std::f64::consts::PI;
@@ -564,33 +495,5 @@ mod tf_plots {
             );
 
         (amp_dragged, amp_pointer, ph_dragged, ph_pointer)
-    }
-}
-
-
-
-
-
-mod frequency_response_app {
-    use crate::CentralApp;
-
-    pub struct FreqResp {
-        label: String,
-    }
-
-    impl FreqResp {
-        pub fn new(label: String) -> FreqResp {
-            FreqResp { label }
-        }
-    }
-
-    impl CentralApp for FreqResp {
-        fn draw_app(&mut self, ui: &mut egui::Ui) {
-            ui.label("Frequency response app currently not implemented.");
-        }
-
-        fn get_label(&self) -> &str {
-            &self.label
-        }
     }
 }
