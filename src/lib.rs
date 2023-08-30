@@ -20,12 +20,17 @@ trait CentralApp {
 
 impl eframe::App for ControlApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Set light theme so we don't have to mess with colors for plots
+        ctx.set_visuals(egui::Visuals::light());
+
+        /* Skip draw top panel
         egui::TopBottomPanel::top("app_selection_panel").show(ctx, |ui| {
             if self.top_bar(ui) {
                 #[cfg(not(target_arch = "wasm32"))] // no quit on web pages!
                 _frame.close();
             }
         });
+        */
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.centered_and_justified(|ui| {
@@ -115,9 +120,11 @@ mod pole_position_app {
     use super::tf_plots;
 
     #[derive(PartialEq, Debug, Clone, Copy)]
-    enum Order {
-        First,
-        Second,
+    enum Systems {
+        FirstOrder,
+        RealSecondOrder,
+        RealSecondOrderAndZero,
+        ComplexSecondOrder,
     }
 
     #[derive(PartialEq, Debug, Clone, Copy)]
@@ -130,11 +137,13 @@ mod pole_position_app {
     pub struct PolePos {
         label: String,
 
-        order: Order,
+        systype: Systems,
         display: Display,
 
-        fo: FirstOrderSystem,
-        so: SecondOrderSystem,
+        first: FirstOrderSystem,
+        second: RealSecondOrderSystem,
+        second_zero: RealSecondOrderSystemAndZero,
+        complex: ComplexSecondOrderSystem,
 
         pole_drag_offset: Option<(f64, f64)>,
     }
@@ -143,28 +152,50 @@ mod pole_position_app {
         pub fn new(label: String) -> PolePos {
             PolePos {
                 label,
-                order: Order::First,
+                systype: Systems::FirstOrder,
                 display: Display::StepResponse,
-                fo: FirstOrderSystem { T: 1.0, T_lower: 0.1, T_upper: 500.0},
-                so: SecondOrderSystem { d: 0.5, w: 0.75, d_lower: 0.01, d_upper: 5.0, w_lower: 0.01, w_upper: 5.0},
+                first: FirstOrderSystem { 
+                    T: 1.0, T_lower: 0.1, T_upper: 500.0,
+                    K: 1.0, K_lower: -2.0, K_upper: 2.0,
+                    L: 0.0, L_lower: 0.0, L_upper: 5.0,
+                },
+                second: RealSecondOrderSystem {
+                    T1: 1.0, T2: 2.0, T_lower: 0.1, T_upper: 500.0,
+                    K: 1.0, K_lower: -2.0, K_upper: 2.0,
+                    L: 0.0, L_lower: 0.0, L_upper: 5.0,
+                },
+                second_zero: RealSecondOrderSystemAndZero {
+                    T1: 0.5, T2: 0.75, T_lower: 0.1, T_upper: 500.0,
+                    Tz: 1.0, Tz_lower: -10.0, Tz_upper: 10.0,
+                    K: 1.0, K_lower: -2.0, K_upper: 2.0,
+                    L: 0.0, L_lower: 0.0, L_upper: 5.0,
+                },
+                complex: ComplexSecondOrderSystem {
+                    d: 0.7, d_lower: 0.01, d_upper: 1.0,
+                    w: 1.0, w_lower: 0.01, w_upper: 10.0,
+                    K: 1.0, K_lower: -2.0, K_upper: 2.0,
+                    L: 0.0, L_lower: 0.0, L_upper: 5.0,
+                },
                 pole_drag_offset: None,
             }
         }
 
         fn pole_plot(&mut self, ui: &mut Ui, width: f32, height: f32) {
-            let (dragged, pointer_coordinate) = match self.order {
-                Order::First =>
-                    tf_plots::pole_plot(&self.fo, ui, width, height),
-                Order::Second =>
-                    tf_plots::pole_plot(&self.so, ui, width, height),
+            let (dragged, pointer_coordinate) = match self.systype {
+                Systems::FirstOrder => tf_plots::pole_plot(&self.first, ui, width, height),
+                Systems::RealSecondOrder => tf_plots::pole_plot(&self.second, ui, width, height),
+                Systems::RealSecondOrderAndZero => tf_plots::pole_plot(&self.second_zero, ui, width, height),
+                Systems::ComplexSecondOrder => tf_plots::pole_plot(&self.complex, ui, width, height),
             };
 
             // Handle dragging
             if dragged {
                 if let Some((re,im)) = pointer_coordinate { // This should never fail
-                    match self.order {
-                        Order::First => self.fo.adjust_poles_to(re, im),
-                        Order::Second => self.so.adjust_poles_to(re, im),
+                    match self.systype {
+                        Systems::FirstOrder => self.first.adjust_pole_zero(re, im),
+                        Systems::RealSecondOrder => self.second.adjust_pole_zero(re, im),
+                        Systems::RealSecondOrderAndZero => self.second_zero.adjust_pole_zero(re, im),
+                        Systems::ComplexSecondOrder => self.complex.adjust_pole_zero(re, im),
                     };
                 }
             } else {
@@ -173,27 +204,38 @@ mod pole_position_app {
         }
 
         fn step_response_plot(&mut self, ui: &mut Ui, width: f32, height: f32) {
-            let (_dragged, _pointer_coordinate) = match self.order {
-                Order::First =>
-                    tf_plots::step_response_plot(&self.fo, ui, width, height),
-                Order::Second =>
-                    tf_plots::step_response_plot(&self.so, ui, width, height),
+            let (_dragged, _pointer_coordinate) = match self.systype {
+                Systems::FirstOrder => tf_plots::step_response_plot(&self.first, ui, width, height),
+                Systems::RealSecondOrder => tf_plots::step_response_plot(&self.second, ui, width, height),
+                Systems::RealSecondOrderAndZero => tf_plots::step_response_plot(&self.second_zero, ui, width, height),
+                Systems::ComplexSecondOrder => tf_plots::step_response_plot(&self.complex, ui, width, height),
             };
         }
 
         fn bode_plot(&mut self, ui: &mut Ui, width: f32, height: f32) {
-            let (_amp_dragged, _amp_pointer, _ph_dragged, _ph_pointer) = match self.order {
-                Order::First => tf_plots::bode_plot(&self.fo, ui, width, height),
-                Order::Second => tf_plots::bode_plot(&self.so, ui, width, height),
+            let (_amp_dragged, _amp_pointer, _ph_dragged, _ph_pointer) = match self.systype {
+                Systems::FirstOrder => tf_plots::bode_plot(&self.first, ui, width, height),
+                Systems::RealSecondOrder => tf_plots::bode_plot(&self.second, ui, width, height),
+                Systems::RealSecondOrderAndZero => tf_plots::bode_plot(&self.second_zero, ui, width, height),
+                Systems::ComplexSecondOrder => tf_plots::bode_plot(&self.complex, ui, width, height),
             };
         }
 
         fn order_selection(&mut self, ui: &mut Ui) {
-            ui.heading("Select System Order");
-            ui.horizontal(|ui| {
-                ui.radio_value(&mut self.order, Order::First, "First order");
-                ui.radio_value(&mut self.order, Order::Second, "Second order");
-            });
+            egui::ComboBox::from_label("System type")
+                .selected_text(match self.systype {
+                    Systems::FirstOrder => "First order",
+                    Systems::RealSecondOrder => "Second order",
+                    Systems::RealSecondOrderAndZero => "Second order with zero",
+                    Systems::ComplexSecondOrder => "Second order complex",
+                })
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut self.systype, Systems::FirstOrder, "First order");
+                    ui.selectable_value(&mut self.systype, Systems::RealSecondOrder, "Second order");
+                    ui.selectable_value(&mut self.systype, Systems::RealSecondOrderAndZero, "Second order with zero");
+                    ui.selectable_value(&mut self.systype, Systems::ComplexSecondOrder, "Second order complex");
+                }
+            );
         }
 
         fn display_selection(&mut self, ui: &mut Ui) {
@@ -205,19 +247,34 @@ mod pole_position_app {
         }
 
         fn parameter_sliders(&mut self, ui: &mut Ui) {
-            match self.order {
-                Order::First => {
-                    ui.heading("G(s) = 1/(sT - 1)");
-                    ui.add(
-                        egui::Slider::new(&mut self.fo.T, self.fo.T_lower..=self.fo.T_upper)
-                            .text("T")
-                            .logarithmic(true),
-                    );
+            match self.systype {
+                Systems::FirstOrder => {
+                    ui.heading("G(s) = K * exp(-Ls) / (s*T + 1)");
+                    ui.add(egui::Slider::new(&mut self.first.T, self.first.T_lower..=self.first.T_upper).text("T").logarithmic(true));
+                    ui.add(egui::Slider::new(&mut self.first.K, self.first.K_lower..=self.first.K_upper).text("K"));
+                    ui.add(egui::Slider::new(&mut self.first.L, self.first.L_lower..=self.first.L_upper).text("L"));
                 }
-                Order::Second => {
-                    ui.heading("G(s) = ω^2/(s^2 + 2δωs+ ω^2)");
-                    ui.add(egui::Slider::new(&mut self.so.d, self.so.d_lower..=self.so.d_upper).text("δ"));
-                    ui.add(egui::Slider::new(&mut self.so.w, self.so.w_lower..=self.so.w_upper).text("ω"));
+                Systems::RealSecondOrder => {
+                    ui.heading("G(s) = K * exp(-Ls) / ((s*T1 + 1) * (s*T2 + 1))");
+                    ui.add(egui::Slider::new(&mut self.second.T1, self.second.T_lower..=self.second.T_upper).text("T1").logarithmic(true));
+                    ui.add(egui::Slider::new(&mut self.second.T2, self.second.T_lower..=self.second.T_upper).text("T2").logarithmic(true));
+                    ui.add(egui::Slider::new(&mut self.second.K, self.second.K_lower..=self.second.K_upper).text("K"));
+                    ui.add(egui::Slider::new(&mut self.second.L, self.second.L_lower..=self.second.L_upper).text("L"));
+                }
+                Systems::RealSecondOrderAndZero => {
+                    ui.heading("G(s) = K * exp(-Ls) * (s*Tz-1) / ((s*T1 + 1) * (s*T2 + 1))");
+                    ui.add(egui::Slider::new(&mut self.second_zero.T1, self.second_zero.T_lower..=self.second_zero.T_upper).text("T1").logarithmic(true));
+                    ui.add(egui::Slider::new(&mut self.second_zero.T2, self.second_zero.T_lower..=self.second_zero.T_upper).text("T2").logarithmic(true));
+                    ui.add(egui::Slider::new(&mut self.second_zero.Tz, self.second_zero.Tz_lower..=self.second_zero.Tz_upper).text("Tz"));
+                    ui.add(egui::Slider::new(&mut self.second_zero.K, self.second_zero.K_lower..=self.second_zero.K_upper).text("K"));
+                    ui.add(egui::Slider::new(&mut self.second_zero.L, self.second_zero.L_lower..=self.second_zero.L_upper).text("L"));
+                }
+                Systems::ComplexSecondOrder => {
+                    ui.heading("G(s) = K * exp(-Ls) * ω^2 / (s^2 + 2δωs + ω^2)");
+                    ui.add(egui::Slider::new(&mut self.complex.d, self.complex.d_lower..=self.complex.d_upper).text("δ"));
+                    ui.add(egui::Slider::new(&mut self.complex.w, self.complex.w_lower..=self.complex.w_upper).text("ω"));
+                    ui.add(egui::Slider::new(&mut self.complex.K, self.complex.K_lower..=self.complex.K_upper).text("K"));
+                    ui.add(egui::Slider::new(&mut self.complex.L, self.complex.L_lower..=self.complex.L_upper).text("L"));
                 }
             };
         }
@@ -333,7 +390,7 @@ mod tf_plots {
 
                 let mut plot = Plot::new(title)
                     .allow_scroll(false)
-                    .allow_zoom(false)
+                    .allow_zoom(true)
                     .allow_boxed_zoom(false)
                     .allow_drag(false)
                     .show_x(false)
@@ -369,18 +426,13 @@ mod tf_plots {
     ) -> (bool, Option<(f64, f64)>)
     {
         // Plot params
-        let cross_radius = 10.0;
+        let marker_radius = 10.0;
         let re_bounds = -3.55..1.1;
         let im_bounds = -1.5..1.5;
 
         // Plot points
-        let points = tf.poles();
-        let data = Points::new(points);
-        let unit_circle = Line::new(PlotPoints::from_parametric_callback(
-            |t| (t.sin(), t.cos()),
-            0.0..(2.0 * PI),
-            100,
-        ));
+        let pole_data = Points::new(tf.poles());
+        let zero_data = Points::new(tf.zeros());
 
         // Plot
         plot_show(
@@ -392,11 +444,16 @@ mod tf_plots {
             im_bounds,
             |plot| plot.data_aspect(1.0),
             |plot_ui| {
-                plot_ui.line(unit_circle.color(Color32::GRAY));
                 plot_ui.points(
-                    data.shape(MarkerShape::Cross)
+                    pole_data.shape(MarkerShape::Cross)
                         .color(Color32::BLACK)
-                        .radius(cross_radius),
+                        .radius(marker_radius),
+                );
+                plot_ui.points(
+                    zero_data.shape(MarkerShape::Circle)
+                        .color(Color32::BLACK)
+                        .radius(marker_radius)
+                        .filled(false),
                 );
             },
         )
@@ -416,7 +473,7 @@ mod tf_plots {
 
         // Calculate plot bounds
         let t_bounds = (0.0 - t_end * pad_ratio)..(t_end + t_end * pad_ratio);
-        let y_bounds = (0.0 - pad_ratio)..(1.5 + pad_ratio);
+        let y_bounds = (-0.5 - pad_ratio)..(1.5 + pad_ratio);
 
         // Calc plot data
         let step = (t_bounds.end - t_bounds.start) / ((n_samples - 1) as f64);
