@@ -1,6 +1,6 @@
 # Control Web Applications
 
-Simple web apps to demonstrate basic control theory. Try it [here](https://mvmorin.github.io/control_web_apps/).
+A simple web app providing interactive tools to explore basic concepts in control theory for the basic course in control given at Lund University. Try it [here](https://albheim.github.io/control_web_apps/).
 
 # Development
 
